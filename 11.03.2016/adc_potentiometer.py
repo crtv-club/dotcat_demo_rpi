@@ -1,13 +1,12 @@
-# Written by Limor "Ladyada" Fried for Adafruit Industries, (c) 2015
-# This code is released into the public domain
+# Based on: http://bit.ly/226GBjt (Limor "Ladyada" Fried for Adafruit Industries, (c) 2015)
 
 
 import RPi.GPIO as GPIO
 import time
 
-
+# Раньше мы использовали нумерацию по типу GPIO.BOARD: к 40-й ножке обращались по номеру 40
+# Этом проекте используем дргую распиновку: http://bit.ly/1pC3VEs, вторая картинка
 GPIO.setmode(GPIO.BCM)
-DEBUG = 1
 
 # read SPI data from MCP3008 chip, 8 possible adc's (0 thru 7)
 def readadc(adcnum, clockpin, mosipin, misopin, cspin):
@@ -44,23 +43,30 @@ def readadc(adcnum, clockpin, mosipin, misopin, cspin):
         adcout >>= 1       # first bit is 'null' so drop it
         return adcout
 
-# change these as desired - they're the pins connected from the
+# Номера портов, которые будут использованый для SPI. Сюда будет подключен АЦП
 # SPI port on the ADC to the Cobbler
 SPICLK = 18
 SPIMISO = 23
 SPIMOSI = 24
 SPICS = 25
 
+# Пин, на который подключена пищалка
 BUZZER_PIN = 21
 
+# Устанавливаем пин пищалки на вывод
 GPIO.setup(BUZZER_PIN, GPIO.OUT)
 
+# Максимальная частота в герцах.
+# Именно на этой частоте будет звучать пищалка, когда мы потенциометр выкрутим на максимум
 MAX_FREQ = 400  # Hz
 
+# Про ШИМ в RPi.GPIO: https://sourceforge.net/p/raspberry-gpio-python/wiki/PWM/
+
+# Создаем экземпляр класса ШИМ.
+# Через этот объект мы будем выводить сигнал на пин BUZZER_PIN с некоторой частотой
 buzzer_pwm = GPIO.PWM(BUZZER_PIN, MAX_FREQ)
 
-buzzer_pwm.start(50.0)
-
+# Устанавливаем режимы пинов интерфейса SPI
 # set up the SPI interface pins
 GPIO.setup(SPIMOSI, GPIO.OUT)
 GPIO.setup(SPIMISO, GPIO.IN)
@@ -68,52 +74,56 @@ GPIO.setup(SPICLK, GPIO.OUT)
 GPIO.setup(SPICS, GPIO.OUT)
 
 # 10k trim pot connected to adc #0
+# Потенциометр подключен на нулевой вход АЦП
 potentiometer_adc = 0
 
-last_read = 0       # this keeps track of the last potentiometer value
-tolerance = 7       # to keep from being jittery we'll only change
-                    # volume when the pot has moved more than 5 'counts'
+last_read = 0       # Переменная отслеживает последнее считанное с потенциометра значение
+tolerance = 7       # Минимальное изменение значения. Новое значение с потенциометра будем
+                    # считывать только тогда, когда разница между текущим и предудущим значением
+                    # будет больше tolerance. Необходимо для устранения дребезжания
 
+# Начинаем пищать. 50.0 - процент времени, на протяжении которого будем держать на пине 1-цу
+buzzer_pwm.start(50.0)
+
+# Основной бесконечный цикл
 while True:
+        # Будем считать, что потенциометр не изменил положение
         # we'll assume that the pot didn't move
         trim_pot_changed = False
 
+        # Считываем очередное значение с АЦП
         # read the analog pin
         trim_pot = readadc(potentiometer_adc, SPICLK, SPIMOSI, SPIMISO, SPICS)
+
+        # Вычисляем разницу между текущим и прошлым значением
         # how much has it changed since the last read?
         pot_adjust = abs(trim_pot - last_read)
 
-        #if DEBUG:
-        #        print("trim_pot:", trim_pot)
-        #        print("pot_adjust:", pot_adjust)
-        #        print("last_read", last_read)
-
+        # Если изменение больше tolerance
         if pot_adjust > tolerance:
+               # Считаем, что потенциометр изменил положение
                trim_pot_changed = True
 
-        #if DEBUG:
-        #        #print "trim_pot_changed", trim_pot_changed
-
+        # Если потенциометр повернулся...
         if ( trim_pot_changed ):
-                set_frequency = trim_pot / 10.24           # convert 10bit adc0 (0-1024) trim pot read into 0-100 volume level
-                set_frequency = round(set_frequency, 2)    # round out decimal value
+                set_frequency = trim_pot / 10.24           # преобразовываем 10-битное значение adc0 (0-1024) в значение
+                                                           # процента частоты (от 0 до 100)
+                set_frequency = round(set_frequency, 2)    # Округляем полученное значение до сотых
                 #set_frequency = int(set_frequency)        # cast volume as integer
 
-                print('Frequency = {freq}%' .format(freq = set_frequency))
+                print('Frequency = {freq}%' .format(freq = set_frequency))  # выводим новое значение частоты на экран
 
-                buzzer_pwm.ChangeFrequency(
-                        max(MAX_FREQ * set_frequency / 100.0, 1)
+                buzzer_pwm.ChangeFrequency(  # Изменяем частоту пищания на...
+                        max(
+                            MAX_FREQ * set_frequency / 100.0,  # ...произведение максимальной частоты на процент
+                            1  # ...либо на 1Гц, если потенциометр будет установлен в ноль
+                        )
                 )
 
-                #set_vol_cmd = 'sudo amixer cset numid=1 -- {volume}% > /dev/null' .format(volume = set_volume)
-                #os.system(set_vol_cmd)  # set volume
-
-                #if DEBUG:
-                #        print("set_volume", set_volume)
-                #        print("trim_pot_changed", set_volume)
-
+                # Сохраняем последнее считанное значение до следующей итерации
                 # save the potentiometer reading for the next loop
                 last_read = trim_pot
 
-        # hang out and do nothing for a half second
+        # Ничего не делаем 1/10-ю секунды
+        # hang out and do nothing for a 1/10th of second
         time.sleep(0.1)
