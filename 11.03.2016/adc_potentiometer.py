@@ -4,9 +4,9 @@
 import RPi.GPIO as GPIO
 import time
 
-# Раньше мы использовали нумерацию по типу GPIO.BOARD: к 40-й ножке обращались по номеру 40
-# Этом проекте используем дргую распиновку: http://bit.ly/1pC3VEs, вторая картинка
-GPIO.setmode(GPIO.BCM)
+# Используем нумерацию выводов по типу GPIO.BOARD,
+# подробнее: http://bit.ly/1pC3VEs
+GPIO.setmode(GPIO.BOARD)
 
 # read SPI data from MCP3008 chip, 8 possible adc's (0 thru 7)
 def readadc(adcnum, clockpin, mosipin, misopin, cspin):
@@ -45,13 +45,13 @@ def readadc(adcnum, clockpin, mosipin, misopin, cspin):
 
 # Номера портов, которые будут использованый для SPI. Сюда будет подключен АЦП
 # SPI port on the ADC to the Cobbler
-SPICLK = 18
-SPIMISO = 23
-SPIMOSI = 24
-SPICS = 25
+SPICLK = 12
+SPIMISO = 16
+SPIMOSI = 18
+SPICS = 22
 
 # Пин, на который подключена пищалка
-BUZZER_PIN = 21
+BUZZER_PIN = 40
 
 # Устанавливаем пин пищалки на вывод
 GPIO.setup(BUZZER_PIN, GPIO.OUT)
