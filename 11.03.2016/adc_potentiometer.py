@@ -43,7 +43,7 @@ def readadc(adcnum, clockpin, mosipin, misopin, cspin):
         adcout >>= 1       # first bit is 'null' so drop it
         return adcout
 
-# Номера портов, которые будут использованый для SPI. Сюда будет подключен АЦП
+# Номера портов, которые будут использованы для SPI. Сюда будет подключен АЦП
 # SPI port on the ADC to the Cobbler
 SPICLK = 12
 SPIMISO = 16
