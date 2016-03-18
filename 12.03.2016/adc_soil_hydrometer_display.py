@@ -9,6 +9,9 @@ import time
 import lcd
 import adc
 
+# Настраиваем порты:
+GPIO.setmode(GPIO.BOARD)      # Используем нумерацию GPIO.BOARD
+
 # Определяем номера портов, на которые подключен дисплей
 # Define GPIO to LCD mapping
 LCD_RS = 13
@@ -65,9 +68,6 @@ def main():
     MAX_VALUE = 1023
 
     #####################################################################
-
-    # Настраиваем порты:
-    GPIO.setmode(GPIO.BOARD)      # Используем нумерацию GPIO.BOARD
 
     # Все порты к дисплею устанавливаем на вывод:
     GPIO.setup(LCD_E , GPIO.OUT)  # E
