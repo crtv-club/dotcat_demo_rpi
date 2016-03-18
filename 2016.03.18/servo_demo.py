@@ -22,7 +22,7 @@ try:                      # I still don’t know what this does
 
         time.sleep(2)                   #continues for a half a second
 
-        p.ChangeDutyCycle(10.5)    #sends a 10.5% pulse to turn the servo CW
+        p.ChangeDutyCycle(11.5)    #sends a 10.5% pulse to turn the servo CW
 
         time.sleep(2)                   #continues for a half a second
 
