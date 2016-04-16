@@ -1,6 +1,5 @@
 import RPi.GPIO as GPIO
 
-
 # sh_cp - LATCH- сдвиг
 # st_cp - CLK- синхро сигнал
 # data_in - входные данные(1 или 0)
@@ -62,4 +61,3 @@ class ShiftRegister(object):
                 binaryValue = binaryValue + '0'
             value = value << 1
         return binaryValue
-

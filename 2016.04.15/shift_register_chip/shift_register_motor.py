@@ -15,3 +15,4 @@ RegistrForDiods = ShiftRegistr(data_in, sh_cp, st_cp)
 while True:
  temp = RegistrForDiods.converBinary(Data)
  RegistrForDiods.shift_reg(temp)
+
