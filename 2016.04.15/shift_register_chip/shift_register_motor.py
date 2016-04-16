@@ -1,18 +1,21 @@
 import RPi.GPIO as GPIO
-from FileShiftRegistr import ShiftRegistr
+from shift_reg_lib import ShiftRegister
+from time import sleep
 
 # устанавливаем пины
-data_in = 3  # пин для входных данных
-st_cp = 5  # пин для синхросигнала
-sh_cp = 7  # пин для сдвига
+si = 37    # пин для входных данных
+rck = 33   # пин для сдвига регистров хранения
+sck = 35   # пин для синхросигнала и сдвига
+sclr = 40  # пин для очистки
 
-Data = 0b10011100 #
+Data = 0b01010101
 # которое будем менять для работы определенных моторов/диодов
 GPIO.setmode(GPIO.BOARD)  # устанавливаем режим пинов
 
-RegistrForDiods = ShiftRegistr(data_in, sh_cp, st_cp)
+diode_reg = ShiftRegister(si, sck, rck, sclr)
 
 while True:
- temp = RegistrForDiods.converBinary(Data)
- RegistrForDiods.shift_reg(temp)
-
+    diode_reg.write_data(Data)
+    sleep(1)
+    diode_reg.write_data(~ Data)
+    sleep(1)
