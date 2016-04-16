@@ -1,5 +1,5 @@
 import RPi.GPIO as GPIO
-
+import time
 
 # sh_cp - LATCH- сдвиг
 # st_cp - CLK- синхро сигнал
@@ -29,26 +29,30 @@ class ShiftRegister(object):
 
     def clk_puls(self):  # Делаем скачек импульса подавая сначала 0, потом 1, потом снова 0
         # для подачи сигнала что нам нужно сделать сдвиг
+        GPIO.output(self.CLK, GPIO.LOW)  # подаем на пин логичиеский 0
+        time.sleep(0.01)
         GPIO.output(self.CLK, GPIO.HIGH)  # подаем на пин логичискую 1
+        time.sleep(0.01)
         GPIO.output(self.CLK, GPIO.LOW)  # подаем на пин логичиеский 0
         return
 
     def serLatch(self):
+        GPIO.output(self.LATCH, GPIO.LOW)
+        time.sleep(0.01)
         GPIO.output(self.LATCH, GPIO.HIGH)
-        # time.sleep(.01)
+        time.sleep(0.01)
         GPIO.output(self.LATCH, GPIO.LOW)
         return
 
     def shift_reg(self, data):  # Функция работы сдвига регистра
-        self.digital_write(GPIO.LOW)
         for i in range(0, 8):  # Задаем диапазон от 0 до 7(по количеству выходов на нашем микроконтроллере, напомню, их 8)
             temp = data & 0x80
-            if temp & 0x80:  # Проверяем контролирующий бит
-                GPIO.output(self.data_in, 1)  # если он равен 1, записываем его в переменную и выходи из if-а
+            if temp == 0x80:  # Проверяем контролирующий бит
+                GPIO.output(self.data_in, GPIO.HIGH)  # если он равен 1, записываем его в переменную и выходи из if-а
             else:  # в противном случае переходим дальше, и присваеваем переменной data_torage ноль
-                GPIO.output(self.data_in, 0)
+                GPIO.output(self.data_in, GPIO.LOW)
             self.clk_puls()
-            data = data << 1  # Сдвигаем регистр на 1 влево и записываем в переменную, цикл начинаеться заново
+            data = data << 0x01  # Сдвигаем регистр на 1 влево и записываем в переменную, цикл начинаеться заново
         self.serLatch()
         return
 
