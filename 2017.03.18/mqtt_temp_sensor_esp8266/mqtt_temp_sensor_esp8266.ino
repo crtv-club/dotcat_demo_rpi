@@ -1,6 +1,5 @@
 /*
  Basic ESP8266 MQTT example
- https://raw.githubusercontent.com/knolleary/pubsubclient/master/examples/mqtt_esp8266/mqtt_esp8266.ino
 
  This sketch demonstrates the capabilities of the pubsub library in combination
  with the ESP8266 board/library.
@@ -31,23 +30,20 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <OneWire.h>
+#include "connection_settings.h"
 
-// Update these with values suitable for your network.
-
-const char* ssid = ".......";
-const char* password = ".......";
-const char* mqtt_server = ".......";
+#define ONE_HOUR_IN_MS 3600000
+#define TEN_MINUTES_IN_MS 600000
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-long lastMsg = 0;
+long lastMsg = -TEN_MINUTES_IN_MS;
 char msg[50];
 const char* pubTopic = "/sensors/temp/TEMP1";
 
 OneWire  ds(13);  // on pin 13 (a 4.7K resistor is necessary)
 
-#define ONE_HOUR_IN_MS 3600000
-#define TEN_MINUTES_IN_MS 600000
+
 
 void setup_wifi() {
   delay(10);
@@ -92,6 +88,7 @@ void reconnect() {
 }
 
 void setup() {
+  pinMode(BUILTIN_LED, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
   Serial.begin(9600);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -203,7 +200,7 @@ void loop() {
     dtostrf(celsius, 1, 2, msg);
     Serial.print("Publish message: ");
     Serial.println(msg);
-    client.publish(pubTopic, msg);
+    client.publish(pubTopic, msg, true);
   }
 }
 
