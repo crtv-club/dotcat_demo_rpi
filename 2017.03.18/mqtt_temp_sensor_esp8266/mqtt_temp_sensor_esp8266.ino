@@ -5,7 +5,7 @@
  with the ESP8266 board/library.
 
  It connects to an MQTT server then:
-  - publishes current temperature in Celsius to the topic "pubTopic every two seconds
+  - publishes current temperature in Celsius to the topic "pubTopic" every two seconds
 
  It will reconnect to the server if the connection is lost using a blocking
  reconnect function. See the 'mqtt_reconnect_nonblocking' example for how to
@@ -30,6 +30,7 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <OneWire.h>
+
 #include "connection_settings.h"
 
 #define ONE_HOUR_IN_MS 3600000
@@ -41,8 +42,7 @@ long lastMsg = -TEN_MINUTES_IN_MS;
 char msg[50];
 const char* pubTopic = "/sensors/temp/TEMP1";
 
-OneWire  ds(13);  // on pin 13 (a 4.7K resistor is necessary)
-
+OneWire  oneWireBus(13);  // on pin 13 (a 4.7K resistor is necessary)
 
 
 void setup_wifi() {
@@ -88,10 +88,9 @@ void reconnect() {
 }
 
 void setup() {
-  pinMode(BUILTIN_LED, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
   Serial.begin(9600);
   setup_wifi();
-  client.setServer(mqtt_server, 1883);
+  client.setServer(mqtt_server, mqtt_port);
 }
 
 void loop() {
@@ -108,10 +107,10 @@ void loop() {
   byte addr[8];
   float celsius, fahrenheit;
   
-  if ( !ds.search(addr)) {
+  if ( !oneWireBus.search(addr)) {
     Serial.println("No more addresses.");
     Serial.println();
-    ds.reset_search();
+    oneWireBus.reset_search();
     delay(250);
     return;
   }
@@ -147,22 +146,22 @@ void loop() {
       return;
   } 
 
-  ds.reset();
-  ds.select(addr);
-  ds.write(0x44, 1);        // start conversion, with parasite power on at the end
+  oneWireBus.reset();
+  oneWireBus.select(addr);
+  oneWireBus.write(0x44, 1);        // start conversion, with parasite power on at the end
   
   delay(1000);     // maybe 750ms is enough, maybe not
-  // we might do a ds.depower() here, but the reset will take care of it.
+  // we might do a oneWireBus.depower() here, but the reset will take care of it.
   
-  present = ds.reset();
-  ds.select(addr);    
-  ds.write(0xBE);         // Read Scratchpad
+  present = oneWireBus.reset();
+  oneWireBus.select(addr);    
+  oneWireBus.write(0xBE);         // Read Scratchpad
 
   Serial.print("  Data = ");
   Serial.print(present, HEX);
   Serial.print(" ");
   for ( i = 0; i < 9; i++) {           // we need 9 bytes
-    data[i] = ds.read();
+    data[i] = oneWireBus.read();
     Serial.print(data[i], HEX);
     Serial.print(" ");
   }
