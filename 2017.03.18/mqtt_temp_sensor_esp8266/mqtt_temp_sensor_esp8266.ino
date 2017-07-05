@@ -30,6 +30,7 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <OneWire.h>
+#include <DallasTemperature.h>
 
 #include "connection_settings.h"
 
@@ -43,7 +44,7 @@ char msg[50];
 const char* pubTopic = "/sensors/temp/TEMP1";
 
 OneWire  oneWireBus(13);  // on pin 13 (a 4.7K resistor is necessary)
-
+DallasTemperature sensors(&oneWireBus);
 
 void setup_wifi() {
   delay(10);
@@ -93,113 +94,74 @@ void setup() {
   client.setServer(mqtt_server, mqtt_port);
 }
 
-void loop() {
+bool init_temp_sensors() {
+  const int sensor_count = sensors.getDeviceCount();
+
+  sensors.begin();
+
+  if (sensor_count == 0) {
+    Serial.println("No sensors connected");
+  }
+  else {
+    Serial.print("Detected sensor count: ");
+    Serial.println(sensor_count);
+  }
+
+  return sensor_count;
+}
+
+double read_temperature(int index_of_sensor) {
+  sensors.requestTemperatures();
+  const double temperature = sensors.getTempCByIndex(INDEX_OF_SENSOR);
+  
+  Serial.print("Temperature for Device ");
+  Serial.print(INDEX_OF_SENSOR);
+  Serial.print(" is: ");
+  Serial.print(temperature);
+
+  return temperature;
+}
+
+void publish_if_time_came(double temperature) {
+  long now = millis();
+  if (now - lastMsg > TEN_MINUTES_IN_MS) {
+    lastMsg = now;
+    dtostrf(temperature, 1, 2, msg);
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish(pubTopic, msg, true);
+  }
+}
+
+void loop_body() {
+  #define INDEX_OF_SENSOR 0
 
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
 
-  byte i;
-  byte present = 0;
-  byte type_s;
-  byte data[12];
-  byte addr[8];
-  float celsius, fahrenheit;
-  
-  if ( !oneWireBus.search(addr)) {
-    Serial.println("No more addresses.");
-    Serial.println();
-    oneWireBus.reset_search();
-    delay(250);
+  int count_sensors_connected = init_temp_sensors();
+
+  if (! count_sensors_connected) {
     return;
   }
-  
-  Serial.print("ROM =");
-  for( i = 0; i < 8; i++) {
-    Serial.write(' ');
-    Serial.print(addr[i], HEX);
+
+  if (count_sensors_connected <= INDEX_OF_SENSOR) {
+    Serial.print("sensor number ");
+    Serial.print(INDEX_OF_SENSOR);
+    Serial.println(" is unavailable");
+
+    return;
   }
 
-  if (OneWire::crc8(addr, 7) != addr[7]) {
-      Serial.println("CRC is not valid!");
-      return;
-  }
-  Serial.println();
- 
-  // the first ROM byte indicates which chip
-  switch (addr[0]) {
-    case 0x10:
-      Serial.println("  Chip = DS18S20");  // or old DS1820
-      type_s = 1;
-      break;
-    case 0x28:
-      Serial.println("  Chip = DS18B20");
-      type_s = 0;
-      break;
-    case 0x22:
-      Serial.println("  Chip = DS1822");
-      type_s = 0;
-      break;
-    default:
-      Serial.println("Device is not a DS18x20 family device.");
-      return;
-  } 
-
-  oneWireBus.reset();
-  oneWireBus.select(addr);
-  oneWireBus.write(0x44, 1);        // start conversion, with parasite power on at the end
+  double temperature = read_temperature();
   
-  delay(1000);     // maybe 750ms is enough, maybe not
-  // we might do a oneWireBus.depower() here, but the reset will take care of it.
-  
-  present = oneWireBus.reset();
-  oneWireBus.select(addr);    
-  oneWireBus.write(0xBE);         // Read Scratchpad
+  publish_if_time_came(temperature);
+}
 
-  Serial.print("  Data = ");
-  Serial.print(present, HEX);
-  Serial.print(" ");
-  for ( i = 0; i < 9; i++) {           // we need 9 bytes
-    data[i] = oneWireBus.read();
-    Serial.print(data[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.print(" CRC=");
-  Serial.print(OneWire::crc8(data, 8), HEX);
-  Serial.println();
-
-  // Convert the data to actual temperature
-  // because the result is a 16 bit signed integer, it should
-  // be stored to an "int16_t" type, which is always 16 bits
-  // even when compiled on a 32 bit processor.
-  int16_t raw = (data[1] << 8) | data[0];
-  if (type_s) {
-    raw = raw << 3; // 9 bit resolution default
-    if (data[7] == 0x10) {
-      // "count remain" gives full 12 bit resolution
-      raw = (raw & 0xFFF0) + 12 - data[6];
-    }
-  } else {
-    byte cfg = (data[4] & 0x60);
-    // at lower res, the low bits are undefined, so let's zero them
-    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
-    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
-    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
-    //// default is 12 bit resolution, 750 ms conversion time
-  }
-  celsius = (float)raw / 16.0;
-  Serial.print("  Temperature = ");
-  Serial.print(celsius);
-  Serial.print(" Celsius, ");
-  
-  long now = millis();
-  if (now - lastMsg > TEN_MINUTES_IN_MS) {
-    lastMsg = now;
-    dtostrf(celsius, 1, 2, msg);
-    Serial.print("Publish message: ");
-    Serial.println(msg);
-    client.publish(pubTopic, msg, true);
-  }
+void loop() {
+  loop_body();
+  delay(1000);
 }
 
