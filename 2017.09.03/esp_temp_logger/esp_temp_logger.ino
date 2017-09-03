@@ -20,7 +20,7 @@ DallasTemperature tempSensors(&oneWireBus);
 #define SERIAL_SPEED 115200
 
 // Define deep sleep interval in microseconds (1 second = 1 000 000 us = 1e6 us)
-#define DEEP_SLEEP_INTERVAL_US 5e6
+#define DEEP_SLEEP_INTERVAL_US 360e6
 
 // Define another magic number - a delay between commands on OneWire
 #define SMALL_DELAY 10
