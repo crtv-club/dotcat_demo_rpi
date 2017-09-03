@@ -54,31 +54,47 @@ void loop() {
   ESP.deepSleep(DEEP_SLEEP_INTERVAL_US, WAKE_RF_DISABLED);
 }
 
-void printSensorData() {
-  // Just a function which reads data from the first temperature sensor
-  // and prints it to serial console.
-  uint8_t sensors_count = tempSensors.getDeviceCount();
+bool getFirstSensorData(float* _pData) {
+  // Just a function which reads data from the first temperature sensor and saves it by _pData pointer
+  // in a case of success.
+  
+  // Returns true if data was retrieved, false otherwise.
 
-  if (sensors_count > 0) {
-    Serial.print(sensors_count);
-    Serial.println(" sensors detected, only the first one will be used");
-  }
-  else {
-    Serial.println("No sensors detected, giving up");
-    return;
+  // Check if any sensors connected
+  uint8_t sensors_connected = tempSensors.getDeviceCount();
+
+  if (! sensors_connected) {
+    // Temperature sensor is disconnected, no data retrieved
+    return false;
   }
 
   // Temperature MUST be requested before it can be read
-  tempSensors.requestTemperaturesByIndex(0);
+  // requestTemperaturesByIndex() works unstable for some reason and likes to return +85 degrees of Celsius
+  tempSensors.requestTemperatures();
 
   // Get temperature from the first sensor. It works fine but is slow
-  float temp = tempSensors.getTempCByIndex(0);
+  *(_pData) = tempSensors.getTempCByIndex(0);
 
   // If the ID of sensor is already known, then it's better to send a direct request:
-  // float temp = tempSensors.getTempC(TEMP_SENSOR_ID);
+  // *(_pData) = tempSensors.getTempC(TEMP_SENSOR_ID);
+
+  return true;
+}
+
+void printSensorData() {
+  // Just a function which reads data from the first temperature sensor
+  // and prints it to serial console.
+
+  float temperature;
+  bool data_read = getFirstSensorData(&temperature);
+
+  if (! data_read) {
+    Serial.println("Temperature sensor is disconnected, no data retrieved");
+    return;
+  }
 
   Serial.print("Read temperature: ");
-  Serial.print(temp);
+  Serial.print(temperature);
   Serial.println("°C");
 }
 
