@@ -2,6 +2,7 @@
 #include <DallasTemperature.h>
 
 #include <ESP8266WiFi.h>
+#include <PubSubClient.h>
 
 // Include connection settings file (don't forget to edit it)
 #include "connection_settings.h"
@@ -24,6 +25,11 @@ DallasTemperature tempSensors(&oneWireBus);
 // Define another magic number - a delay between commands on OneWire
 #define SMALL_DELAY 10
 
+// Initialize WiFi client and corresponding MQTT client
+WiFiClient wifiClient;
+const String hostname = String(MQTT_BROKER_HOSTNAME);
+PubSubClient mqttClient(wifiClient);
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -38,6 +44,7 @@ void setup() {
   tempSensors.begin();
 
   connectWiFi();
+  mqttClient.setServer(MQTT_BROKER_HOSTNAME, MQTT_BROKER_PORT);
 
   Serial.println("Start up finished");
 }
@@ -130,5 +137,28 @@ void sendSensorData() {
   Serial.print("Read temperature: ");
   Serial.print(temperature);
   Serial.println("°C");
+
+  Serial.println("Connecting to broker and sending data...");
+
+  #define BUFFER_SIZE 13
+
+  char buffer[BUFFER_SIZE]; // The longest line is ID. It looks like "ESP 7FFFFFFF"
+
+  snprintf(buffer, BUFFER_SIZE, "ESP %x", ESP.getChipId()); // Generate string containing ID of client
+
+  while (! mqttClient.connected()) {
+    if (mqttClient.connect(buffer)) {
+      break;
+    }
+    else {
+      Serial.print(".");
+      delay(500);
+    }
+  }
+  
+  dtostrf(temperature, 1, 2, buffer);
+  
+  mqttClient.publish(MQTT_PUB_TOPIC, buffer);
+  mqttClient.disconnect();
 }
 
