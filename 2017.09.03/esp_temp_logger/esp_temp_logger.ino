@@ -1,6 +1,11 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+#include <ESP8266WiFi.h>
+
+// Include connection settings file (don't forget to edit it)
+#include "connection_settings.h"
+
 // Declare a number of pin that is used for OneWire communtication
 #define ONE_WIRE_PIN 13
 
@@ -27,13 +32,42 @@ void setup() {
 
   // Send greeting message
   Serial.println(); // Print empty line after startup garbage (e.g. own startup messages of ESP8266)
-  Serial.println("Startup finished");
+  Serial.println("Starting up...");
 
   // Begin communication with sensors
   tempSensors.begin();
 
-  // Small delay to finish discovery of devices
-  delay(SMALL_DELAY);
+  connectWiFi();
+
+  Serial.println("Start up finished");
+}
+
+void connectWiFi() {
+  // Initialize temporary variables that are needed for static IP setup
+  const IPAddress staticIP(WIFI_IP);
+  const IPAddress gateway(WIFI_GATEWAY);
+  const IPAddress subnet(WIFI_SUBNET);
+
+  // Initialize static IP configuration
+  WiFi.config(staticIP, gateway, subnet);
+
+  // Begin WiFi connection procedure
+  Serial.print("Connecting to ");
+  Serial.print(WIFI_SSID);
+  Serial.print(" access point");
+  
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  // Wait until connected:
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+
+  // Print result
+  Serial.println();
+  Serial.println("Connected");
 }
 
 void loop() {
@@ -44,14 +78,14 @@ void loop() {
   // On the end of iteration 'ESP.deep_sleep' will be called and MCU fill be halted until rebooted,
   // by internal RTC or by external reset signal ('low' pulse with duration > 100 us).
 
-  printSensorData();
+  sendSensorData();
 
   Serial.println("Going to sleep...");
 
   // delay(10000); // Debug: sleep for 10 seconds to measure current consumption
 
-  // Go to sleep and disable WiFi on wakeup
-  ESP.deepSleep(DEEP_SLEEP_INTERVAL_US, WAKE_RF_DISABLED);
+  // Go to sleep and skip radio calibration on wakeup
+  ESP.deepSleep(DEEP_SLEEP_INTERVAL_US, WAKE_NO_RFCAL);
 }
 
 bool getFirstSensorData(float* _pData) {
@@ -81,7 +115,7 @@ bool getFirstSensorData(float* _pData) {
   return true;
 }
 
-void printSensorData() {
+void sendSensorData() {
   // Just a function which reads data from the first temperature sensor
   // and prints it to serial console.
 
