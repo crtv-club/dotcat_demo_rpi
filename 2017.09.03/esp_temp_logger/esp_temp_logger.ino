@@ -126,6 +126,7 @@ void sendSensorData() {
   // Just a function which reads data from the first temperature sensor
   // and prints it to serial console.
 
+  // Try to get temperature data from the first sensor
   float temperature;
   bool data_read = getFirstSensorData(&temperature);
 
@@ -146,6 +147,7 @@ void sendSensorData() {
 
   snprintf(buffer, BUFFER_SIZE, "ESP %x", ESP.getChipId()); // Generate string containing ID of client
 
+  // Establish connection to MQTT broker
   while (! mqttClient.connected()) {
     if (mqttClient.connect(buffer)) {
       break;
@@ -155,9 +157,11 @@ void sendSensorData() {
       delay(500);
     }
   }
-  
+
+  // Convert temperature data to sting in format "0.10" or "11.66"
   dtostrf(temperature, 1, 2, buffer);
-  
+
+  // Publish temperature string to MQTT broker and then disconnect gracefully
   mqttClient.publish(MQTT_PUB_TOPIC, buffer);
   mqttClient.disconnect();
 }
