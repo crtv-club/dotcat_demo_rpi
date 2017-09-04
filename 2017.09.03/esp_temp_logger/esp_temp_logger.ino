@@ -85,14 +85,33 @@ void loop() {
   // On the end of iteration 'ESP.deep_sleep' will be called and MCU fill be halted until rebooted,
   // by internal RTC or by external reset signal ('low' pulse with duration > 100 us).
 
-  sendSensorData();
-
-  Serial.println("Going to sleep...");
+  sensorRoutine();
 
   // delay(10000); // Debug: sleep for 10 seconds to measure current consumption
 
+  Serial.println("Going to sleep...");
+
   // Go to sleep and skip radio calibration on wakeup
   ESP.deepSleep(DEEP_SLEEP_INTERVAL_US, WAKE_NO_RFCAL);
+}
+
+void sensorRoutine() {
+  // Fetch data from the first sensor and send it to MQTT broker
+
+  // Try to get temperature data from the first sensor
+  float temperature;
+  bool data_read = getFirstSensorData(&temperature);
+
+  if (! data_read) {
+    Serial.println("Temperature sensor is disconnected, no data retrieved");
+    return;
+  }
+
+  Serial.print("Read temperature: ");
+  Serial.print(temperature);
+  Serial.println("°C");
+
+  sendSensorData(temperature);
 }
 
 bool getFirstSensorData(float* _pData) {
@@ -122,22 +141,8 @@ bool getFirstSensorData(float* _pData) {
   return true;
 }
 
-void sendSensorData() {
-  // Just a function which reads data from the first temperature sensor
-  // and prints it to serial console.
-
-  // Try to get temperature data from the first sensor
-  float temperature;
-  bool data_read = getFirstSensorData(&temperature);
-
-  if (! data_read) {
-    Serial.println("Temperature sensor is disconnected, no data retrieved");
-    return;
-  }
-
-  Serial.print("Read temperature: ");
-  Serial.print(temperature);
-  Serial.println("°C");
+void sendSensorData(float temperature) {
+  // Send fetched data to broker with predefined topic
 
   Serial.println("Connecting to broker and sending data...");
 
